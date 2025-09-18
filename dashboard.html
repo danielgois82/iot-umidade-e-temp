@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gráfico de Dados do ThingSpeak</title>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Adaptador para datas -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+</head>
+<body>
+    <h1>Gráfico de Umidade e Temperatura</h1>
+
+    <div style="width: 80%; margin: 0 auto;">
+        <canvas id="grafico"></canvas>
+    </div>
+
+    <script>
+        const canal = 3079749;
+        const token = '8QQ2VGB67WTDXDWE';
+        const url = `https://api.thingspeak.com/channels/${canal}/feeds.json?api_key=${token}&results=50`;
+
+        let grafico; // Variável global para o gráfico
+
+        async function buscarDados() {
+            const resposta = await fetch(url);
+            const dados = await resposta.json();
+            return dados.feeds;
+        }
+
+        async function atualizarGrafico() {
+            const feeds = await buscarDados();
+
+            const umidade = feeds.map(feed => parseFloat(feed.field1));
+            const temperatura = feeds.map(feed => parseFloat(feed.field2));
+            const timestamps = feeds.map(feed => new Date(feed.created_at));
+
+            grafico.data.labels = timestamps;
+            grafico.data.datasets[0].data = umidade;
+            grafico.data.datasets[1].data = temperatura;
+            grafico.update();
+        }
+
+        async function criarGrafico() {
+            const feeds = await buscarDados();
+
+            const umidade = feeds.map(feed => parseFloat(feed.field1));
+            const temperatura = feeds.map(feed => parseFloat(feed.field2));
+            const timestamps = feeds.map(feed => new Date(feed.created_at));
+
+            const ctx = document.getElementById('grafico').getContext('2d');
+            grafico = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: timestamps,
+                    datasets: [
+                        {
+                            label: 'Umidade',
+                            data: umidade,
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            fill: true,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Temperatura',
+                            data: temperatura,
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            fill: true,
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'minute',
+                                tooltipFormat: 'dd/MM/yyyy HH:mm'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Data e Hora'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Valor'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(tooltipItem) {
+                                    return tooltipItem.dataset.label + ': ' + tooltipItem.raw.toFixed(2);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Atualiza o gráfico a cada 1 minuto (60000 ms)
+            setInterval(atualizarGrafico, 60000);
+        }
+
+        criarGrafico();
+    </script>
+</body>
+</html>
